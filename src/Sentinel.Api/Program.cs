@@ -49,6 +49,7 @@ builder.Services.AddOpenTelemetry()
 
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -66,11 +67,23 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Sentinel API v1");
+        options.RoutePrefix = "swagger";
+        options.DocumentTitle = "Sentinel API";
+    });
+}
+
 app.MapGet("/", () => Results.Ok(new
 {
     name = "Sentinel API",
     status = "available"
-}));
+}))
+    .ExcludeFromDescription();
 app.MapHealthChecks("/health");
 app.MapIncidentEndpoints();
 

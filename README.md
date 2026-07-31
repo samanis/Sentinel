@@ -7,6 +7,8 @@ Sentinel is a publicly viewable portfolio project demonstrating the design and i
 The current implementation starting point is documented in the [Day 1 Implementation Plan](docs/day-1-plan.md).
 The telemetry setup and Collector deployment model are documented in [Observability](docs/observability.md).
 
+When the API runs in the Development environment, interactive API documentation is available at `/swagger` and the OpenAPI document at `/openapi/v1.json`.
+
 ## Vision
 
 Sentinel is designed to demonstrate production-grade approaches to agentic AI, retrieval-augmented generation (RAG), Model Context Protocol (MCP) integrations, distributed systems, observability, memory optimization, and software architecture.

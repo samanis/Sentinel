@@ -14,11 +14,15 @@ public static class IncidentEndpoints
 
         group.MapPost("/", CreateIncidentAsync)
             .WithName("CreateIncident")
+            .WithSummary("Create an incident")
+            .WithDescription("Creates the durable incident context used by later investigations and evidence collection.")
             .Produces<IncidentResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest);
 
         group.MapGet("/{id:guid}", GetIncidentAsync)
             .WithName("GetIncident")
+            .WithSummary("Get an incident")
+            .WithDescription("Returns an incident by its unique identifier.")
             .Produces<IncidentResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
