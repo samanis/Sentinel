@@ -3,38 +3,38 @@ using Sentinel.Domain.Incidents;
 
 namespace Sentinel.Application.Incidents.CreateIncident;
 
-public sealed class CreateIncidentHandler
+public sealed class CreateIncidentUseCase
 {
     private readonly IClock _clock;
     private readonly IIncidentRepository _repository;
 
-    public CreateIncidentHandler(IIncidentRepository repository, IClock clock)
+    public CreateIncidentUseCase(IIncidentRepository repository, IClock clock)
     {
         _repository = repository;
         _clock = clock;
     }
 
-    public async Task<IncidentDetails> HandleAsync(
-        CreateIncidentCommand command,
+    public async Task<IncidentDetails> ExecuteAsync(
+        CreateIncidentRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
         var now = _clock.UtcNow;
 
-        if (command.StartedAt > now)
+        if (request.StartedAt > now)
         {
             throw new ArgumentException(
                 "The incident start time cannot be in the future.",
-                nameof(command));
+                nameof(request));
         }
 
         var incident = Incident.Create(
-            command.Title,
-            command.Service,
-            command.StartedAt,
-            command.Severity,
+            request.Title,
+            request.Service,
+            request.StartedAt,
+            request.Severity,
             now);
 
         await _repository.AddAsync(incident, cancellationToken);

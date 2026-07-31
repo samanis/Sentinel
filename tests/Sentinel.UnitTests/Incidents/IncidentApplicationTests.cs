@@ -14,21 +14,21 @@ public sealed class IncidentApplicationTests
     public async Task CreateStoresAndReturnsIncidentDetails()
     {
         var repository = new InMemoryIncidentRepository();
-        var handler = new CreateIncidentHandler(repository, new StubClock(Now));
-        var command = new CreateIncidentCommand(
+        var useCase = new CreateIncidentUseCase(repository, new StubClock(Now));
+        var request = new CreateIncidentRequest(
             "Order API latency",
             "sentinel-demo-service",
             Now.AddMinutes(-5),
             IncidentSeverity.High);
 
-        var result = await handler.HandleAsync(command, CancellationToken.None);
+        var result = await useCase.ExecuteAsync(request, CancellationToken.None);
         var stored = await repository.GetByIdAsync(
             new IncidentId(result.Id),
             CancellationToken.None);
 
         Assert.NotNull(stored);
         Assert.Equal(result.Id, stored.Id.Value);
-        Assert.Equal(command.Title, result.Title);
+        Assert.Equal(request.Title, result.Title);
         Assert.Equal(IncidentStatus.Open, result.Status);
         Assert.Equal(Now, result.CreatedAt);
     }
@@ -36,51 +36,51 @@ public sealed class IncidentApplicationTests
     [Fact]
     public async Task CreateRejectsFutureStartTime()
     {
-        var handler = new CreateIncidentHandler(
+        var useCase = new CreateIncidentUseCase(
             new InMemoryIncidentRepository(),
             new StubClock(Now));
-        var command = new CreateIncidentCommand(
+        var request = new CreateIncidentRequest(
             "Order API latency",
             "sentinel-demo-service",
             Now.AddSeconds(1),
             IncidentSeverity.High);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            handler.HandleAsync(command, CancellationToken.None));
+            useCase.ExecuteAsync(request, CancellationToken.None));
     }
 
     [Fact]
     public async Task CreateRejectsBlankTitle()
     {
-        var handler = new CreateIncidentHandler(
+        var useCase = new CreateIncidentUseCase(
             new InMemoryIncidentRepository(),
             new StubClock(Now));
-        var command = new CreateIncidentCommand(
+        var request = new CreateIncidentRequest(
             " ",
             "sentinel-demo-service",
             Now,
             IncidentSeverity.High);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            handler.HandleAsync(command, CancellationToken.None));
+            useCase.ExecuteAsync(request, CancellationToken.None));
     }
 
     [Fact]
     public async Task GetReturnsMappedIncidentDetails()
     {
         var repository = new InMemoryIncidentRepository();
-        var createHandler = new CreateIncidentHandler(repository, new StubClock(Now));
-        var created = await createHandler.HandleAsync(
-            new CreateIncidentCommand(
+        var createUseCase = new CreateIncidentUseCase(repository, new StubClock(Now));
+        var created = await createUseCase.ExecuteAsync(
+            new CreateIncidentRequest(
                 "Order API latency",
                 "sentinel-demo-service",
                 Now.AddMinutes(-5),
                 IncidentSeverity.High),
             CancellationToken.None);
-        var getHandler = new GetIncidentHandler(repository);
+        var getUseCase = new GetIncidentUseCase(repository);
 
-        var result = await getHandler.HandleAsync(
-            new GetIncidentQuery(new IncidentId(created.Id)),
+        var result = await getUseCase.ExecuteAsync(
+            new GetIncidentRequest(new IncidentId(created.Id)),
             CancellationToken.None);
 
         Assert.NotNull(result);
@@ -90,10 +90,10 @@ public sealed class IncidentApplicationTests
     [Fact]
     public async Task GetReturnsNullForUnknownIncident()
     {
-        var handler = new GetIncidentHandler(new InMemoryIncidentRepository());
+        var useCase = new GetIncidentUseCase(new InMemoryIncidentRepository());
 
-        var result = await handler.HandleAsync(
-            new GetIncidentQuery(IncidentId.New()),
+        var result = await useCase.ExecuteAsync(
+            new GetIncidentRequest(IncidentId.New()),
             CancellationToken.None);
 
         Assert.Null(result);
@@ -102,10 +102,10 @@ public sealed class IncidentApplicationTests
     [Fact]
     public async Task CreateRespectsCancellation()
     {
-        var handler = new CreateIncidentHandler(
+        var useCase = new CreateIncidentUseCase(
             new InMemoryIncidentRepository(),
             new StubClock(Now));
-        var command = new CreateIncidentCommand(
+        var request = new CreateIncidentRequest(
             "Order API latency",
             "sentinel-demo-service",
             Now,
@@ -114,7 +114,7 @@ public sealed class IncidentApplicationTests
         await cancellation.CancelAsync();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
-            handler.HandleAsync(command, cancellation.Token));
+            useCase.ExecuteAsync(request, cancellation.Token));
     }
 
     private sealed class StubClock(DateTimeOffset utcNow) : IClock
