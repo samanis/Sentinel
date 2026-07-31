@@ -5,6 +5,7 @@ Sentinel is a publicly viewable portfolio project demonstrating the design and i
 > Project status: early planning and architecture. The repository structure and interfaces described below are the intended direction, not a list of completed features.
 
 The current implementation starting point is documented in the [Day 1 Implementation Plan](docs/day-1-plan.md).
+The telemetry setup and Collector deployment model are documented in [Observability](docs/observability.md).
 
 ## Vision
 
