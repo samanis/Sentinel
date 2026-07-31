@@ -1,0 +1,4 @@
+name: sentinel
+
+# Infrastructure services will be added when persistence is introduced.
+services: {}

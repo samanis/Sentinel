@@ -1,0 +1,24 @@
+## .NET build output
+bin/
+obj/
+artifacts/
+
+## IDE and user-specific files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+## Test output
+TestResults/
+coverage/
+.run/
+
+## Local configuration and secrets
+.env
+appsettings.Local.json
+
+## Operating system files
+.DS_Store
+Thumbs.db
