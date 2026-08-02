@@ -23,7 +23,7 @@ Expected commands:
 
 ```powershell
 docker compose up -d
-dotnet run --project samples/Sentinel.DemoService
+dotnet run --project samples/IncidentLab.OrderApi
 dotnet run --project src/Sentinel.Api
 ```
 
@@ -37,7 +37,7 @@ src/
   Sentinel.Domain/
   Sentinel.Infrastructure/
 samples/
-  Sentinel.DemoService/
+  IncidentLab.OrderApi/
 tests/
   Sentinel.UnitTests/
 docker-compose.yml
@@ -52,16 +52,18 @@ Create the following endpoints:
 ```http
 GET  /health
 GET  /orders/{id}
-POST /faults/enable
-POST /faults/disable
+GET  /scenarios
+GET  /scenarios/status
+POST /scenarios/{scenarioId}/start
+POST /scenarios/stop
 ```
 
 ### Required behavior
 
 - `/health` reports whether the service is running.
 - `/orders/{id}` returns a deterministic sample order while the service is healthy.
-- `/faults/enable` enables a controlled failure mode.
-- `/faults/disable` returns the service to normal behavior.
+- `/scenarios/{scenarioId}/start` enables a controlled incident scenario.
+- `/scenarios/stop` returns the service to normal behavior.
 - When the fault is enabled, `/orders/{id}` returns a controlled error or delay.
 
 Do not implement a real database connection leak in this milestone. A deterministic simulated failure is safer, faster to test, and sufficient to prove the initial telemetry flow.
@@ -90,7 +92,7 @@ Example incident request:
 ```json
 {
   "title": "Order API latency increase",
-  "service": "sentinel-demo-service",
+  "service": "incidentlab-order-api",
   "startedAt": "2026-07-31T16:00:00Z",
   "severity": "High"
 }

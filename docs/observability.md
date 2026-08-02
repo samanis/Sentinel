@@ -16,7 +16,7 @@ Run either application normally:
 
 ```powershell
 dotnet run --project src/Sentinel.Api
-dotnet run --project samples/Sentinel.DemoService
+dotnet run --project samples/IncidentLab.OrderApi
 ```
 
 The OTLP exporter defaults to `http://localhost:4317`. Override it when
@@ -54,7 +54,7 @@ exporter and standard environment variables.
 The applications currently emit these service names:
 
 - `sentinel-api`
-- `sentinel-demo-service`
+- `incidentlab-order-api`
 
 Both also emit their assembly version and deployment environment. Health-check
 requests are excluded from tracing to reduce noise, while HTTP and runtime

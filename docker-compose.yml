@@ -1,6 +1,32 @@
 name: sentinel
 
 services:
+  sentinel-api:
+    build:
+      context: .
+      dockerfile: src/Sentinel.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    ports:
+      - "5156:8080"
+    depends_on:
+      - otel-collector
+
+  incidentlab-order-api:
+    build:
+      context: .
+      dockerfile: samples/IncidentLab.OrderApi/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    ports:
+      - "5112:8080"
+    depends_on:
+      - otel-collector
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.157.0
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
