@@ -6,20 +6,26 @@ Sentinel is a publicly viewable portfolio project demonstrating the design and i
 
 The current implementation starting point is documented in the [Day 1 Implementation Plan](docs/day-1-plan.md).
 The telemetry setup and Collector deployment model are documented in [Observability](docs/observability.md).
+The PostgreSQL and pgvector local setup is documented in [Database](docs/database.md).
+The Alertmanager-triggered, AI-assisted Loki/Tempo ingestion design is documented
+in [AI-Assisted Telemetry Ingestion](docs/ingestion-system-design.md).
+The complete MVP scope, architecture, delivery sequence, and acceptance criteria
+are documented in the [MVP Technical Specification](docs/mvp-technical-specification.md).
 The independently runnable fault-producing sample is documented in
 [Incident Lab Order API](samples/IncidentLab.OrderApi/README.md).
 
 When the API runs in the Development environment, interactive API documentation is available at `/swagger` and the OpenAPI document at `/openapi/v1.json`.
 
-Run Sentinel API, Incident Lab Order API, and the OpenTelemetry Collector as
-separate containers:
+Run Sentinel API, Incident Lab Order API, the OpenTelemetry Collector, and
+Grafana Tempo as separate containers:
 
 ```powershell
 docker compose up --build -d
 ```
 
 Sentinel is available at `http://localhost:5156` and the Incident Lab at
-`http://localhost:5112`.
+`http://localhost:5112`. Tempo's query API is available at
+`http://localhost:3200`.
 
 ## Vision
 

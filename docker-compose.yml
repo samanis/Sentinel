@@ -1,18 +1,57 @@
 name: sentinel
 
 services:
+  postgres:
+    image: pgvector/pgvector:0.8.5-pg18-bookworm
+    environment:
+      POSTGRES_DB: sentinel
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: ${SENTINEL_POSTGRES_PASSWORD:-sentinel-local-dev-only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
   sentinel-api:
     build:
       context: .
       dockerfile: src/Sentinel.Api/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Sentinel: Host=postgres;Port=5432;Database=sentinel;Username=sentinel;Password=${SENTINEL_POSTGRES_PASSWORD:-sentinel-local-dev-only}
+      Tempo__BaseUrl: http://tempo:3200/
+      Loki__BaseUrl: http://loki:3100/
+      Prometheus__BaseUrl: http://prometheus:9090/
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      OpenAI__Model: ${OPENAI_MODEL:-gpt-5.6-sol}
+      AI__Provider: ${AI_PROVIDER:-Ollama}
+      Ollama__BaseUrl: http://host.docker.internal:11434/
+      Ollama__Model: ${OLLAMA_MODEL:-qwen3:8b}
+      Ollama__ContextLength: ${OLLAMA_CONTEXT_LENGTH:-8192}
+      Ollama__MaxOutputTokens: ${OLLAMA_MAX_OUTPUT_TOKENS:-1000}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
     ports:
       - "5156:8080"
     depends_on:
-      - otel-collector
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+      tempo:
+        condition: service_started
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
 
   incidentlab-order-api:
     build:
@@ -36,4 +75,74 @@ services:
       - "4317:4317"
       - "4318:4318"
       - "13133:13133"
+    depends_on:
+      tempo:
+        condition: service_started
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
     restart: unless-stopped
+
+  tempo-init:
+    image: alpine:3.22.1
+    command: ["chown", "-R", "10001:10001", "/var/tempo"]
+    user: root
+    volumes:
+      - tempo-data:/var/tempo
+    restart: "no"
+
+  tempo:
+    image: grafana/tempo:2.10.5
+    command: ["-config.file=/etc/tempo/tempo-config.yaml"]
+    volumes:
+      - ./deploy/tempo/tempo-config.yaml:/etc/tempo/tempo-config.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+    depends_on:
+      tempo-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.7.4
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./deploy/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-version"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-remote-write-receiver
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  tempo-data:
+  loki-data:
+  prometheus-data:
