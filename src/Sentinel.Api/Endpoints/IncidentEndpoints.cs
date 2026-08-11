@@ -1,6 +1,8 @@
 using Sentinel.Api.Contracts.Incidents;
+using Sentinel.Api.Contracts.Investigations;
 using Sentinel.Application.Incidents.CreateIncident;
 using Sentinel.Application.Incidents.GetIncident;
+using Sentinel.Application.Investigations.Analysis;
 using Sentinel.Domain.Incidents;
 
 namespace Sentinel.Api.Endpoints;
@@ -26,6 +28,15 @@ public static class IncidentEndpoints
             .Produces<IncidentResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPost("/{id:guid}/investigations", AnalyzeIncidentAsync)
+            .WithName("AnalyzeIncidentRootCause")
+            .WithSummary("Run the bounded RCA agent")
+            .WithDescription("Runs bounded RCA and atomically persists the completed investigation and immutable hypotheses.")
+            .Produces<RcaAnalysisResponse>()
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status502BadGateway);
 
         return endpoints;
     }
@@ -64,5 +75,26 @@ public static class IncidentEndpoints
         return details is null
             ? Results.NotFound()
             : Results.Ok(IncidentResponse.From(details));
+    }
+
+    private static async Task<IResult> AnalyzeIncidentAsync(
+        Guid id,
+        AnalyzeIncidentUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("The incident ID cannot be empty.", nameof(id));
+
+        var result = await useCase.ExecuteAsync(new IncidentId(id), cancellationToken);
+        return result.Status switch
+        {
+            AnalyzeIncidentStatus.IncidentNotFound => Results.NotFound(),
+            AnalyzeIncidentStatus.NoEvidence => Results.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "No evidence available",
+                detail: $"Import or add Evidence before retrying. Failed investigation: {result.InvestigationRunId!.Value.Value:D}"),
+            AnalyzeIncidentStatus.Analyzed => Results.Ok(RcaAnalysisResponse.From(id, result)),
+            _ => throw new InvalidOperationException("Unsupported RCA analysis status.")
+        };
     }
 }

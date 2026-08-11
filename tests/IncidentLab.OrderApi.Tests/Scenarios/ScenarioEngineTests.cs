@@ -20,6 +20,10 @@ public sealed class ScenarioEngineTests
     [InlineData(ScenarioKind.SlowDatabase)]
     [InlineData(ScenarioKind.DatabaseUnavailable)]
     [InlineData(ScenarioKind.DependencyTimeout)]
+    [InlineData(ScenarioKind.ExternalApiTimeout)]
+    [InlineData(ScenarioKind.WebServiceUnavailable)]
+    [InlineData(ScenarioKind.FtpTransferFailure)]
+    [InlineData(ScenarioKind.MemoryLeak)]
     [InlineData(ScenarioKind.UnhandledException)]
     public void StartActivatesSupportedScenario(ScenarioKind kind)
     {
@@ -30,6 +34,36 @@ public sealed class ScenarioEngineTests
         Assert.True(snapshot.IsActive);
         Assert.Equal(kind, snapshot.Kind);
         Assert.Equal(Now.AddSeconds(60), snapshot.ExpiresAt);
+    }
+
+    [Fact]
+    public void ControlledMemoryLeakIsCappedAndResettable()
+    {
+        var memoryLeak = new ControlledMemoryLeak();
+
+        for (var index = 0; index < 100; index++)
+            memoryLeak.Retain();
+
+        Assert.Equal(ControlledMemoryLeak.MaximumRetainedBytes, memoryLeak.Retain());
+        Assert.Equal(ControlledMemoryLeak.MaximumRetainedBytes, memoryLeak.Reset());
+        Assert.Equal(ControlledMemoryLeak.AllocationBytesPerRequest, memoryLeak.Retain());
+    }
+
+    [Theory]
+    [InlineData("slow-database", ScenarioKind.SlowDatabase, 504)]
+    [InlineData("external-api-timeout", ScenarioKind.ExternalApiTimeout, 504)]
+    [InlineData("web-service-unavailable", ScenarioKind.WebServiceUnavailable, 502)]
+    [InlineData("ftp-transfer-failure", ScenarioKind.FtpTransferFailure, 502)]
+    [InlineData("memory-leak", ScenarioKind.MemoryLeak, 503)]
+    public void CatalogMapsAutomatedFailureScenarios(
+        string id,
+        ScenarioKind expectedKind,
+        int expectedStatus)
+    {
+        Assert.True(ScenarioCatalog.TryGet(id, out var definition));
+        Assert.NotNull(definition);
+        Assert.Equal(expectedKind, ScenarioCatalog.GetKind(id));
+        Assert.Equal(expectedStatus, definition.ExpectedStatus);
     }
 
     [Fact]

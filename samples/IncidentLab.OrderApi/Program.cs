@@ -23,6 +23,7 @@ var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddSingleton<ScenarioEngine>();
+builder.Services.AddSingleton<ControlledMemoryLeak>();
 builder.Services.AddSingleton<IncidentLabTelemetry>();
 builder.Services.AddSingleton(TimeProvider.System);
 

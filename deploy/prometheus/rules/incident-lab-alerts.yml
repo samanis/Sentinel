@@ -1,0 +1,12 @@
+groups:
+  - name: incident-lab
+    rules:
+      - alert: IncidentLabOrderFailure
+        expr: increase(incidentlab_order_failures_total{service_name="incidentlab-order-api"}[1m]) > 0
+        labels:
+          service: incidentlab-order-api
+          environment: local
+          severity: critical
+        annotations:
+          summary: Incident Lab Order API returned a failed request
+          description: At least one controlled Order API failure occurred during the last minute.
