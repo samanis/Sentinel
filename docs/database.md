@@ -16,7 +16,7 @@ Connection settings:
 
 ```text
 Host: localhost
-Port: 5432
+Port: 5433
 Database: sentinel
 Username: sentinel
 Password: sentinel-local-dev-only
@@ -64,8 +64,11 @@ The Sentinel container will use the internal Compose hostname:
 Host=postgres;Port=5432;Database=sentinel;Username=sentinel;Password=...
 ```
 
-Docker Compose supplies this connection string to the API. The API applies
-pending Entity Framework Core migrations during startup and uses the
+The host uses port `5433` to avoid colliding with a separately installed local
+PostgreSQL server. Containers continue using PostgreSQL's internal port `5432`.
+
+Docker Compose supplies this connection string to the API and ingestion worker.
+Both processes apply pending Entity Framework Core migrations during startup and use the
 PostgreSQL-backed incident repository for incident creation and retrieval.
 
 The application currently persists:
@@ -73,14 +76,26 @@ The application currently persists:
 - `incidents` as the durable incident context;
 - `evidence` with its incident foreign key, type, source system, source
   reference, explicit source trace ID, span ID, service, observation time,
-  summary, verification state, and SHA-256 content hash.
+  summary, verification state, and SHA-256 content hash;
+- `alert_occurrences` as the idempotent Alertmanager webhook inbox;
+- `ingestion_runs` as durable work records with collection windows, attempts,
+  per-source outcomes, and observation counts;
+- `ingestion_observations` as normalized Loki and Tempo facts associated with
+  an ingestion run, including resolvable source references and trace/span IDs;
+- `evidence_bundles` as canonical search documents with model-versioned
+  `vector(768)` embeddings linked one-to-one with ingestion runs.
+
+Workers claim pending rows with `FOR UPDATE SKIP LOCKED`. A stale running claim
+can be reclaimed after two minutes, so an interrupted worker does not lose an
+already acknowledged webhook.
 
 The unique `(incident_id, content_hash)` index prevents duplicate Evidence for
 the same incident. A second unique index on incident, source trace ID, and
 source span ID protects Tempo-import idempotency when normalization or hashing
-rules evolve. Evidence persistence does not invoke an embedding model or
-OpenAI. Semantic vector indexing remains a separate, optional asynchronous
-stage.
+rules evolve. The ingestion worker uses the local neural `embeddinggemma`
+model through Ollama and stores its normalized 768-dimensional vectors. It is
+an embedding provider, not an AI agent. Both indexing and queries use the same
+model through the `IEmbeddingClient` boundary.
 
 Create a migration after changing a persistence mapping:
 

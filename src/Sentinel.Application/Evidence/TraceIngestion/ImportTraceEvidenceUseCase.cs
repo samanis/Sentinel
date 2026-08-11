@@ -41,7 +41,7 @@ public sealed class ImportTraceEvidenceUseCase(
                 0);
         }
 
-        var normalizedEvidence = normalizer.Normalize(incidentId, trace);
+        var normalizedEvidence = normalizer.Normalize(trace);
         var now = clock.UtcNow;
         var evidenceItems = normalizedEvidence.Select(evidence =>
         {

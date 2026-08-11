@@ -1,11 +1,8 @@
-using Sentinel.Domain.Incidents;
-
 namespace Sentinel.Application.Evidence.TraceIngestion;
 
 public interface ITraceEvidenceNormalizer
 {
     IReadOnlyList<NormalizedTraceEvidence> Normalize(
-        IncidentId incidentId,
         TraceObservation trace);
 }
 

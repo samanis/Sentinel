@@ -1,186 +1,172 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
-  <title id="title">Sentinel AI-assisted ingestion data flow</title>
-  <desc id="desc">Alertmanager triggers a durable ingestion workflow. A bounded AI agent asks trusted tools to search Loki and Tempo. Validated evidence is stored in PostgreSQL and indexed with embeddings in pgvector.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Sentinel synchronous ingestion MVP data flow</title>
+  <desc id="desc">Prometheus sends an alert batch to a TypeScript Fastify ingestion API. The API validates the alert, queries Loki for logs, extracts trace IDs, queries Tempo for traces, normalizes evidence, creates an embedding, and stores evidence in PostgreSQL with pgvector.</desc>
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#081225"/>
-      <stop offset="1" stop-color="#111d36"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071426"/>
+      <stop offset="1" stop-color="#111d38"/>
     </linearGradient>
-    <linearGradient id="agentFill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6d5dfc"/>
-      <stop offset="1" stop-color="#4b7bec"/>
+    <linearGradient id="api" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6657e8"/>
+      <stop offset="1" stop-color="#3979dc"/>
     </linearGradient>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
-      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity="0.35"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#020617" flood-opacity=".4"/>
     </filter>
     <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-      <path d="M1,1 L11,6 L1,11 Z" fill="#69d7f2"/>
+      <path d="M1 1L11 6 1 11Z" fill="#68d8f3"/>
     </marker>
-    <marker id="arrowMuted" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-      <path d="M1,1 L11,6 L1,11 Z" fill="#93a4bd"/>
+    <marker id="returnArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M1 1L11 6 1 11Z" fill="#95a7c2"/>
     </marker>
     <style>
-      .title { font: 700 38px Inter, Segoe UI, Arial, sans-serif; fill: #f8fafc; }
-      .subtitle { font: 400 18px Inter, Segoe UI, Arial, sans-serif; fill: #aab8ce; }
-      .lane-title { font: 700 15px Inter, Segoe UI, Arial, sans-serif; letter-spacing: 1.5px; fill: #7dd3fc; }
-      .node-title { font: 700 19px Inter, Segoe UI, Arial, sans-serif; fill: #f8fafc; }
-      .node-text { font: 400 14px Inter, Segoe UI, Arial, sans-serif; fill: #b9c5d8; }
-      .small { font: 600 12px Inter, Segoe UI, Arial, sans-serif; fill: #8fa2bd; letter-spacing: .5px; }
-      .edge { fill: none; stroke: #69d7f2; stroke-width: 3; marker-end: url(#arrow); }
-      .edge-muted { fill: none; stroke: #93a4bd; stroke-width: 2.5; marker-end: url(#arrowMuted); }
-      .edge-dashed { fill: none; stroke: #8b9bb3; stroke-width: 2; stroke-dasharray: 8 7; marker-end: url(#arrowMuted); }
-      .edge-label { font: 600 13px Inter, Segoe UI, Arial, sans-serif; fill: #b8effb; }
+      .title{font:700 38px Inter,Segoe UI,Arial,sans-serif;fill:#f8fafc}
+      .subtitle{font:400 18px Inter,Segoe UI,Arial,sans-serif;fill:#a9b9cf}
+      .lane{font:700 14px Inter,Segoe UI,Arial,sans-serif;letter-spacing:1.6px;fill:#7dd3fc}
+      .node-title{font:700 19px Inter,Segoe UI,Arial,sans-serif;fill:#f8fafc}
+      .node-text{font:400 14px Inter,Segoe UI,Arial,sans-serif;fill:#bdc9db}
+      .small{font:600 12px Inter,Segoe UI,Arial,sans-serif;letter-spacing:.5px;fill:#91a5c0}
+      .edge{fill:none;stroke:#68d8f3;stroke-width:3;marker-end:url(#arrow)}
+      .return{fill:none;stroke:#95a7c2;stroke-width:2.5;stroke-dasharray:8 7;marker-end:url(#returnArrow)}
+      .label{font:600 13px Inter,Segoe UI,Arial,sans-serif;fill:#b8f0fb}
     </style>
   </defs>
 
-  <rect width="1600" height="1040" fill="url(#background)"/>
-  <circle cx="1390" cy="80" r="240" fill="#264d84" opacity="0.13"/>
-  <circle cx="120" cy="1010" r="280" fill="#5b4ce2" opacity="0.10"/>
+  <rect width="1600" height="980" fill="url(#bg)"/>
+  <circle cx="1460" cy="70" r="260" fill="#345b9d" opacity=".12"/>
+  <circle cx="90" cy="950" r="270" fill="#6857e8" opacity=".09"/>
 
-  <text x="76" y="70" class="title">Sentinel ingestion data flow</text>
-  <text x="76" y="104" class="subtitle">Alert-triggered collection · bounded AI correlation · provenance-first vector indexing</text>
+  <text x="72" y="65" class="title">Sentinel ingestion — MVP data flow</text>
+  <text x="72" y="99" class="subtitle">One synchronous TypeScript API · no queue · no worker · no AI agent</text>
 
-  <!-- lane backgrounds -->
-  <rect x="54" y="140" width="1492" height="186" rx="22" fill="#0d1b31" stroke="#233752"/>
-  <rect x="54" y="346" width="1492" height="410" rx="22" fill="#0b172a" stroke="#233752"/>
-  <rect x="54" y="776" width="1492" height="214" rx="22" fill="#0d1b31" stroke="#233752"/>
-  <text x="76" y="169" class="lane-title">TRIGGER &amp; DURABLE ACCEPTANCE</text>
-  <text x="76" y="375" class="lane-title">BOUNDED COLLECTION &amp; CORRELATION</text>
-  <text x="76" y="805" class="lane-title">VALIDATED STORAGE &amp; RETRIEVAL</text>
+  <!-- External input -->
+  <rect x="52" y="140" width="1496" height="176" rx="22" fill="#0c1a2f" stroke="#253852"/>
+  <text x="74" y="170" class="lane">ALERT INPUT</text>
 
-  <!-- top lane -->
   <g filter="url(#shadow)">
-    <rect x="86" y="200" width="250" height="92" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <circle cx="122" cy="234" r="14" fill="#f97316"/>
-    <path d="M114 253h16M117 258h10" stroke="#f97316" stroke-width="3" stroke-linecap="round"/>
-    <text x="150" y="235" class="node-title">Alertmanager</text>
-    <text x="150" y="261" class="node-text">Firing / resolved webhook</text>
+    <rect x="90" y="204" width="270" height="82" rx="16" fill="#172740" stroke="#3d5979"/>
+    <circle cx="127" cy="238" r="14" fill="#e6522c"/>
+    <path d="M113 255h28" stroke="#e6522c" stroke-width="4" stroke-linecap="round"/>
+    <text x="158" y="239" class="node-title">Prometheus</text>
+    <text x="158" y="263" class="node-text">Evaluates alerting rules</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="438" y="188" width="310" height="116" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="466" y="225" class="node-title">Ingestion API</text>
-    <text x="466" y="251" class="node-text">Authenticate · validate · canonicalize</text>
-    <text x="466" y="276" class="node-text">Return 202 after durable acceptance</text>
+    <rect x="482" y="190" width="430" height="110" rx="18" fill="url(#api)" stroke="#a4adff"/>
+    <text x="518" y="230" class="node-title">Sentinel Ingestion API</text>
+    <text x="518" y="258" class="node-text" style="fill:#edf2ff">Node.js · TypeScript · Fastify</text>
+    <text x="518" y="282" class="small" style="fill:#dce3ff">POST /api/v2/alerts</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="850" y="188" width="300" height="116" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="878" y="225" class="node-title">PostgreSQL inbox</text>
-    <text x="878" y="251" class="node-text">Alert occurrence + payload hash</text>
-    <text x="878" y="276" class="node-text">Idempotent pending work item</text>
+    <rect x="1040" y="204" width="444" height="82" rx="16" fill="#172740" stroke="#3d5979"/>
+    <text x="1074" y="239" class="node-title">Validate and canonicalize</text>
+    <text x="1074" y="265" class="node-text">Schema · limits · service · time window · idempotency key</text>
+  </g>
+
+  <path class="edge" d="M360 245H474"/>
+  <text x="383" y="228" class="label">alert batch</text>
+  <path class="edge" d="M912 245H1032"/>
+  <text x="940" y="228" class="label">in process</text>
+
+  <!-- Collection lane -->
+  <rect x="52" y="336" width="1496" height="286" rx="22" fill="#09172a" stroke="#253852"/>
+  <text x="74" y="366" class="lane">RELATED TELEMETRY COLLECTION</text>
+
+  <g filter="url(#shadow)">
+    <rect x="92" y="416" width="298" height="130" rx="16" fill="#153044" stroke="#2f7890"/>
+    <text x="124" y="455" class="node-title">Build bounded LogQL</text>
+    <text x="124" y="482" class="node-text">Service + environment</text>
+    <text x="124" y="507" class="node-text">Alert observation window</text>
+    <text x="124" y="530" class="small">FIXED LIMITS AND TIMEOUT</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="1254" y="200" width="250" height="92" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="1282" y="235" class="node-title">Ingestion worker</text>
-    <text x="1282" y="261" class="node-text">Claims durable work</text>
-  </g>
-
-  <path class="edge" d="M336 246H430"/>
-  <text x="356" y="230" class="edge-label">webhook</text>
-  <path class="edge" d="M748 246H842"/>
-  <text x="765" y="230" class="edge-label">upsert</text>
-  <path class="edge" d="M1150 246H1246"/>
-  <text x="1163" y="230" class="edge-label">claim</text>
-
-  <!-- middle lane -->
-  <g filter="url(#shadow)">
-    <rect x="94" y="430" width="300" height="226" rx="18" fill="#15243c" stroke="#395778"/>
-    <text x="124" y="470" class="node-title">Deterministic orchestrator</text>
-    <text x="124" y="500" class="node-text">Build canonical alert context</text>
-    <text x="124" y="526" class="node-text">Fix service and time boundaries</text>
-    <text x="124" y="552" class="node-text">Enforce query and token budgets</text>
-    <text x="124" y="578" class="node-text">Execute all external calls</text>
-    <rect x="124" y="602" width="222" height="30" rx="15" fill="#203451"/>
-    <text x="143" y="622" class="small">TRUSTED CONTROL PLANE</text>
+    <rect x="484" y="400" width="260" height="108" rx="16" fill="#172740" stroke="#3d5979"/>
+    <text x="516" y="440" class="node-title">Loki</text>
+    <text x="516" y="468" class="node-text">Related warning/error logs</text>
+    <text x="516" y="491" class="small">RAW LOG SYSTEM OF RECORD</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="486" y="416" width="330" height="254" rx="20" fill="url(#agentFill)" stroke="#9ba7ff"/>
-    <circle cx="528" cy="461" r="17" fill="#ffffff" opacity="0.18"/>
-    <path d="M520 461h16M528 453v16" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-    <text x="557" y="468" class="node-title">Telemetry Ingestion Agent</text>
-    <text x="518" y="506" class="node-text" style="fill:#edf0ff">Chooses approved searches</text>
-    <text x="518" y="533" class="node-text" style="fill:#edf0ff">Correlates logs and traces</text>
-    <text x="518" y="560" class="node-text" style="fill:#edf0ff">Selects relevant observations</text>
-    <text x="518" y="587" class="node-text" style="fill:#edf0ff">Proposes summary and tags</text>
-    <rect x="518" y="612" width="266" height="34" rx="17" fill="#28358d" opacity="0.75"/>
-    <text x="546" y="634" class="small" style="fill:#dfe4ff">NO CREDENTIALS · NO WRITES</text>
+    <rect x="484" y="528" width="260" height="68" rx="16" fill="#17332f" stroke="#31816d"/>
+    <text x="516" y="558" class="node-title">Extract trace IDs</text>
+    <text x="516" y="580" class="node-text">Exact identifiers first</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="914" y="400" width="276" height="122" rx="16" fill="#153044" stroke="#2f7890"/>
-    <text x="944" y="438" class="node-title">SearchLoki</text>
-    <text x="944" y="465" class="node-text">Compiled bounded LogQL</text>
-    <text x="944" y="490" class="node-text">Canonical log observations</text>
+    <rect x="850" y="416" width="300" height="130" rx="16" fill="#153044" stroke="#2f7890"/>
+    <text x="882" y="455" class="node-title">Build Tempo request</text>
+    <text x="882" y="482" class="node-text">Exact trace IDs</text>
+    <text x="882" y="507" class="node-text">Service/time fallback</text>
+    <text x="882" y="530" class="small">CAPPED TRACE AND SPAN COUNT</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="914" y="558" width="276" height="122" rx="16" fill="#153044" stroke="#2f7890"/>
-    <text x="944" y="596" class="node-title">SearchTempo / GetTrace</text>
-    <text x="944" y="623" class="node-text">TraceQL or exact trace ID</text>
-    <text x="944" y="648" class="node-text">Canonical span observations</text>
+    <rect x="1244" y="416" width="260" height="108" rx="16" fill="#172740" stroke="#3d5979"/>
+    <text x="1276" y="456" class="node-title">Tempo</text>
+    <text x="1276" y="484" class="node-text">Related traces and spans</text>
+    <text x="1276" y="507" class="small">RAW TRACE SYSTEM OF RECORD</text>
+  </g>
+
+  <path class="edge" d="M390 462H476"/>
+  <text x="407" y="445" class="label">query</text>
+  <path class="return" d="M614 508V520"/>
+  <path class="edge" d="M744 562H782C816 562 816 481 842 481"/>
+  <text x="760" y="543" class="label">trace IDs</text>
+  <path class="edge" d="M1150 470H1236"/>
+  <text x="1167" y="453" class="label">query</text>
+
+  <!-- Processing and storage lane -->
+  <rect x="52" y="642" width="1496" height="272" rx="22" fill="#0c1a2f" stroke="#253852"/>
+  <text x="74" y="672" class="lane">EVIDENCE, EMBEDDING &amp; STORAGE</text>
+
+  <g filter="url(#shadow)">
+    <rect x="92" y="724" width="304" height="126" rx="16" fill="#17332f" stroke="#31816d"/>
+    <text x="124" y="764" class="node-title">Normalize evidence</text>
+    <text x="124" y="791" class="node-text">Facts · source references</text>
+    <text x="124" y="816" class="node-text">Hashes · provenance · redaction</text>
+    <text x="124" y="839" class="small">DETERMINISTIC</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="1288" y="408" width="216" height="106" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="1320" y="448" class="node-title">Loki</text>
-    <text x="1320" y="475" class="node-text">Raw logs remain here</text>
+    <rect x="492" y="724" width="304" height="126" rx="16" fill="#17332f" stroke="#31816d"/>
+    <text x="524" y="764" class="node-title">Build search document</text>
+    <text x="524" y="791" class="node-text">Alert + selected log facts</text>
+    <text x="524" y="816" class="node-text">Selected trace facts + tags</text>
+    <text x="524" y="839" class="small">STABLE CANONICAL FORMAT</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="1288" y="566" width="216" height="106" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="1320" y="606" class="node-title">Tempo</text>
-    <text x="1320" y="633" class="node-text">Raw traces remain here</text>
-  </g>
-
-  <path class="edge-muted" d="M394 520H478"/>
-  <text x="405" y="503" class="edge-label">context</text>
-  <path class="edge" d="M816 472H906"/>
-  <path class="edge" d="M816 612H906"/>
-  <path class="edge-muted" d="M1190 461H1280"/>
-  <path class="edge-muted" d="M1190 619H1280"/>
-  <path class="edge-dashed" d="M914 494C870 494 872 506 824 506"/>
-  <path class="edge-dashed" d="M914 648C870 648 870 590 824 590"/>
-  <text x="839" y="455" class="edge-label">typed tools</text>
-  <text x="836" y="536" class="small">CAPPED RESULTS</text>
-
-  <!-- bottom lane -->
-  <g filter="url(#shadow)">
-    <rect x="94" y="842" width="302" height="110" rx="16" fill="#17332f" stroke="#31816d"/>
-    <text x="124" y="880" class="node-title">Citation validator</text>
-    <text x="124" y="907" class="node-text">Resolve IDs · verify scope</text>
-    <text x="124" y="932" class="node-text">Normalize · redact · deduplicate</text>
+    <rect x="892" y="724" width="256" height="126" rx="16" fill="#1d2949" stroke="#6877d8"/>
+    <text x="924" y="764" class="node-title">Embedding model</text>
+    <text x="924" y="791" class="node-text">Text → vector</text>
+    <text x="924" y="816" class="node-text">Record model + dimensions</text>
+    <text x="924" y="839" class="small">MODEL CALL, NOT AN AGENT</text>
   </g>
 
   <g filter="url(#shadow)">
-    <rect x="492" y="842" width="276" height="110" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="522" y="880" class="node-title">Evidence store</text>
-    <text x="522" y="907" class="node-text">Facts · provenance · references</text>
-    <text x="522" y="932" class="node-text">PostgreSQL</text>
+    <rect x="1244" y="708" width="260" height="158" rx="16" fill="#172740" stroke="#7d5be7"/>
+    <text x="1276" y="750" class="node-title">PostgreSQL + pgvector</text>
+    <text x="1276" y="779" class="node-text">Alert occurrence</text>
+    <text x="1276" y="803" class="node-text">Evidence and provenance</text>
+    <text x="1276" y="827" class="node-text">Search document + vector</text>
+    <text x="1276" y="850" class="small">IDEMPOTENT COMMIT</text>
   </g>
 
-  <g filter="url(#shadow)">
-    <rect x="864" y="842" width="276" height="110" rx="16" fill="#17263f" stroke="#3d5878"/>
-    <text x="894" y="880" class="node-title">Embedding provider</text>
-    <text x="894" y="907" class="node-text">Validated search document</text>
-    <text x="894" y="932" class="node-text">Model + dimensions recorded</text>
-  </g>
+  <path class="edge" d="M396 787H484"/>
+  <path class="edge" d="M796 787H884"/>
+  <path class="edge" d="M1148 787H1236"/>
 
-  <g filter="url(#shadow)">
-    <rect x="1236" y="830" width="268" height="134" rx="16" fill="#1d2949" stroke="#6877d8"/>
-    <text x="1266" y="870" class="node-title">Evidence bundle + vector</text>
-    <text x="1266" y="897" class="node-text">Compact semantic document</text>
-    <text x="1266" y="922" class="node-text">pgvector similarity index</text>
-    <text x="1266" y="947" class="small">FUTURE INCIDENT RETRIEVAL</text>
-  </g>
+  <!-- cross-lane sequence -->
+  <path class="edge" d="M1262 286V324C1262 350 241 350 241 408"/>
+  <text x="688" y="348" class="label">canonical alert context</text>
+  <path class="edge" d="M1374 524V610C1374 636 244 636 244 716"/>
+  <text x="726" y="632" class="label">bounded logs + traces</text>
 
-  <path class="edge" d="M651 670V732C651 784 245 777 245 834"/>
-  <text x="396" y="762" class="edge-label">structured proposal</text>
-  <path class="edge" d="M396 897H484"/>
-  <path class="edge" d="M768 897H856"/>
-  <path class="edge" d="M1140 897H1228"/>
+  <!-- response -->
+  <path class="return" d="M1374 866V928H696V308"/>
+  <text x="760" y="949" class="label">HTTP success after durable save · explicit partial result when a telemetry source is unavailable</text>
 
-  <text x="76" y="1018" class="small">RAW TELEMETRY STAYS IN LOKI / TEMPO · ONLY VALIDATED EVIDENCE IS EMBEDDED · SIMILARITY IS RETRIEVAL, NOT CAUSAL PROOF</text>
+  <text x="72" y="962" class="small">RAW TELEMETRY REMAINS IN LOKI AND TEMPO · EMBEDDINGS ENABLE RETRIEVAL, NOT ROOT-CAUSE PROOF</text>
 </svg>

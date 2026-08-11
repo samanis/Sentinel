@@ -1,0 +1,16 @@
+global:
+  resolve_timeout: 1m
+
+route:
+  receiver: sentinel-ingestion
+  group_by: [alertname, service, environment]
+  group_wait: 1s
+  group_interval: 15s
+  repeat_interval: 1h
+
+receivers:
+  - name: sentinel-ingestion
+    webhook_configs:
+      - url: http://sentinel-api:8080/api/alerts/webhook
+        send_resolved: true
+        max_alerts: 100

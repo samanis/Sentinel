@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: sentinel
       POSTGRES_PASSWORD: ${SENTINEL_POSTGRES_PASSWORD:-sentinel-local-dev-only}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
       - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -30,6 +30,9 @@ services:
       Tempo__BaseUrl: http://tempo:3200/
       Loki__BaseUrl: http://loki:3100/
       Prometheus__BaseUrl: http://prometheus:9090/
+      Embedding__BaseUrl: http://host.docker.internal:11434/
+      Embedding__Model: embeddinggemma
+      Embedding__Dimensions: 768
       OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       OpenAI__Model: ${OPENAI_MODEL:-gpt-5.6-sol}
       AI__Provider: ${AI_PROVIDER:-Ollama}
@@ -53,6 +56,55 @@ services:
       prometheus:
         condition: service_healthy
 
+  sentinel-worker:
+    build:
+      context: .
+      dockerfile: src/Sentinel.Worker/Dockerfile
+    environment:
+      ConnectionStrings__Sentinel: Host=postgres;Port=5432;Database=sentinel;Username=sentinel;Password=${SENTINEL_POSTGRES_PASSWORD:-sentinel-local-dev-only}
+      Tempo__BaseUrl: http://tempo:3200/
+      Loki__BaseUrl: http://loki:3100/
+      Embedding__BaseUrl: http://host.docker.internal:11434/
+      Embedding__Model: embeddinggemma
+      Embedding__Dimensions: 768
+      IngestionWorker__PollIntervalSeconds: 2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tempo:
+        condition: service_started
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+
+  sentinel-rag-api:
+    build:
+      context: .
+      dockerfile: src/Sentinel.RagApi/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Sentinel: Host=postgres;Port=5432;Database=sentinel;Username=sentinel;Password=${SENTINEL_POSTGRES_PASSWORD:-sentinel-local-dev-only};Options=-c default_transaction_read_only=on
+      Embedding__BaseUrl: http://host.docker.internal:11434/
+      Embedding__Model: embeddinggemma
+      Embedding__Dimensions: 768
+      AI__Provider: ${AI_PROVIDER:-Ollama}
+      Ollama__BaseUrl: http://host.docker.internal:11434/
+      Ollama__Model: ${OLLAMA_MODEL:-qwen3:8b}
+      Ollama__ContextLength: ${OLLAMA_CONTEXT_LENGTH:-8192}
+      Ollama__MaxOutputTokens: ${OLLAMA_MAX_OUTPUT_TOKENS:-1000}
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      OpenAI__Model: ${OPENAI_MODEL:-gpt-5.6-sol}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    ports:
+      - "5157:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    restart: unless-stopped
+
   incidentlab-order-api:
     build:
       context: .
@@ -61,10 +113,44 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_METRIC_EXPORT_INTERVAL: 5000
     ports:
       - "5112:8080"
     depends_on:
       - otel-collector
+
+  telemetry-generator:
+    build:
+      context: .
+      dockerfile: samples/IncidentLab.TelemetryGenerator/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      TelemetryGenerator__TargetBaseUrl: http://incidentlab-order-api:8080/
+      TelemetryGenerator__RequestsPerSecond: ${TELEMETRY_REQUESTS_PER_SECOND:-1}
+      TelemetryGenerator__RequestTimeoutSeconds: 10
+      TelemetryGenerator__MinimumOrderId: 1
+      TelemetryGenerator__MaximumOrderId: 10
+      TelemetryGenerator__AutomatedFailuresEnabled: ${TELEMETRY_AUTOMATED_FAILURES_ENABLED:-true}
+      TelemetryGenerator__FailureScenarioIds: ${TELEMETRY_FAILURE_SCENARIOS:-slow-database,external-api-timeout,web-service-unavailable,ftp-transfer-failure,memory-leak}
+      TelemetryGenerator__FailureDurationSeconds: ${TELEMETRY_FAILURE_DURATION_SECONDS:-45}
+      TelemetryGenerator__HealthyDurationSeconds: ${TELEMETRY_HEALTHY_DURATION_SECONDS:-90}
+      TelemetryGenerator__InitialHealthyDelaySeconds: ${TELEMETRY_INITIAL_HEALTHY_DELAY_SECONDS:-15}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    ports:
+      - "5113:8080"
+    depends_on:
+      incidentlab-order-api:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.157.0
@@ -130,6 +216,7 @@ services:
       - --web.enable-remote-write-receiver
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -141,8 +228,52 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./deploy/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"
+    depends_on:
+      sentinel-api:
+        condition: service_started
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.4.2
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-sentinel-local-dev-only}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   tempo-data:
   loki-data:
   prometheus-data:
+  grafana-data:
+  alertmanager-data:

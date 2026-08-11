@@ -1,11 +1,8 @@
-using Sentinel.Domain.Incidents;
-
 namespace Sentinel.Application.Evidence.LogIngestion;
 
 public interface ILogEvidenceNormalizer
 {
     IReadOnlyList<NormalizedLogEvidence> Normalize(
-        IncidentId incidentId,
         IReadOnlyList<LogObservation> logs);
 }
 
@@ -24,7 +21,6 @@ public sealed class DeterministicLogEvidenceNormalizer : ILogEvidenceNormalizer
         StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyList<NormalizedLogEvidence> Normalize(
-        IncidentId incidentId,
         IReadOnlyList<LogObservation> logs)
     {
         ArgumentNullException.ThrowIfNull(logs);

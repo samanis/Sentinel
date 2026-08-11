@@ -6,5 +6,9 @@ public enum ScenarioKind
     SlowDatabase,
     DatabaseUnavailable,
     DependencyTimeout,
+    ExternalApiTimeout,
+    WebServiceUnavailable,
+    FtpTransferFailure,
+    MemoryLeak,
     UnhandledException
 }

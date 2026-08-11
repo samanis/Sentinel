@@ -24,13 +24,18 @@ public sealed class IncidentLabTelemetry
     }
 
     public void RecordRequest(ScenarioKind scenario) =>
-        orderRequests.Add(1, new KeyValuePair<string, object?>("incidentlab.scenario", scenario.ToString()));
+        orderRequests.Add(1,
+            new KeyValuePair<string, object?>("incidentlab.scenario", scenario.ToString()),
+            new KeyValuePair<string, object?>("incidentlab.simulated", scenario is not ScenarioKind.None));
 
     public void RecordFailure(ScenarioKind scenario) =>
-        orderFailures.Add(1, new KeyValuePair<string, object?>("incidentlab.scenario", scenario.ToString()));
+        orderFailures.Add(1,
+            new KeyValuePair<string, object?>("incidentlab.scenario", scenario.ToString()),
+            new KeyValuePair<string, object?>("incidentlab.simulated", true));
 
     public void RecordDuration(double milliseconds, ScenarioKind scenario) =>
         orderDuration.Record(
             milliseconds,
-            new KeyValuePair<string, object?>("incidentlab.scenario", scenario.ToString()));
+            new KeyValuePair<string, object?>("incidentlab.scenario", scenario.ToString()),
+            new KeyValuePair<string, object?>("incidentlab.simulated", scenario is not ScenarioKind.None));
 }

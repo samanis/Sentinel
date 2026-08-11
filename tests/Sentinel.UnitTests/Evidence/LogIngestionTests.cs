@@ -40,8 +40,7 @@ public sealed class LogIngestionTests
             Observation("ERROR", "database timed out", now, "2")
         };
 
-        var result = new DeterministicLogEvidenceNormalizer().Normalize(
-            IncidentId.New(), logs);
+        var result = new DeterministicLogEvidenceNormalizer().Normalize(logs);
 
         var evidence = Assert.Single(result);
         Assert.Contains("database timed out", evidence.Summary);

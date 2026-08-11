@@ -42,7 +42,15 @@ hypothesis generation, report writing, and remediation are downstream concerns.
 
 ## 3. Context and boundaries
 
+The current queue-free MVP flow is shown below. It uses one synchronous
+TypeScript/Fastify API and a direct embedding call; it does not contain an AI
+agent or background worker.
+
 ![Sentinel ingestion data flow](ingestion-data-flow.svg)
+
+The remainder of this document describes the later AI-assisted target design.
+Its agent, durable work queue, and independently deployed worker are post-MVP
+options rather than requirements for the first ingestion implementation.
 
 ```mermaid
 flowchart LR

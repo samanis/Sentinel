@@ -12,7 +12,11 @@ public static class ScenarioEndpoints
         scenarios.MapGet("/status", (ScenarioEngine engine, TimeProvider timeProvider) =>
             Results.Ok(engine.GetSnapshot(timeProvider.GetUtcNow())));
         scenarios.MapPost("/{scenarioId}/start", StartScenario);
-        scenarios.MapPost("/stop", (ScenarioEngine engine) => Results.Ok(engine.Stop()));
+        scenarios.MapPost("/stop", (ScenarioEngine engine, ControlledMemoryLeak memoryLeak) =>
+        {
+            memoryLeak.Reset();
+            return Results.Ok(engine.Stop());
+        });
 
         return endpoints;
     }
@@ -21,6 +25,7 @@ public static class ScenarioEndpoints
         string scenarioId,
         StartScenarioRequest request,
         ScenarioEngine engine,
+        ControlledMemoryLeak memoryLeak,
         TimeProvider timeProvider)
     {
         if (!ScenarioCatalog.TryGet(scenarioId, out var definition) || definition is null)
@@ -31,13 +36,15 @@ public static class ScenarioEndpoints
         var delay = request.DelayMilliseconds ?? definition.DefaultDelayMilliseconds;
         var errors = Validate(request.DurationSeconds, delay);
 
-        return errors.Count > 0
-            ? Results.ValidationProblem(errors)
-            : Results.Ok(engine.Start(
-                ScenarioCatalog.GetKind(definition.Id),
-                delay,
-                request.DurationSeconds,
-                timeProvider.GetUtcNow()));
+        if (errors.Count > 0)
+            return Results.ValidationProblem(errors);
+
+        memoryLeak.Reset();
+        return Results.Ok(engine.Start(
+            ScenarioCatalog.GetKind(definition.Id),
+            delay,
+            request.DurationSeconds,
+            timeProvider.GetUtcNow()));
     }
 
     private static Dictionary<string, string[]> Validate(int durationSeconds, int delayMilliseconds)

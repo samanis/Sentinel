@@ -167,7 +167,7 @@ gateway are not MVP requirements. They may be introduced later only when
 measured scaling, isolation, security, reliability, or ownership requirements
 justify their operational cost.
 
-The visual reference is [MVP-Architecture-v2.png](../MVP-Architecture-v2.png).
+The visual reference is the [implemented MVP architecture](../DataFlow-Implemented.png).
 
 ## 4. System components
 

@@ -25,6 +25,8 @@ using Sentinel.Infrastructure.Persistence;
 using Sentinel.Infrastructure.Observability;
 using Sentinel.Infrastructure.Time;
 using Sentinel.Infrastructure.AI;
+using Sentinel.Application.Ingestion;
+using Pgvector.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,10 +77,11 @@ var sentinelConnectionString = builder.Configuration.GetConnectionString("Sentin
     ?? throw new InvalidOperationException("Connection string 'Sentinel' is not configured.");
 
 builder.Services.AddDbContext<SentinelDbContext>(options =>
-    options.UseNpgsql(sentinelConnectionString));
+    options.UseNpgsql(sentinelConnectionString, npgsql => npgsql.UseVector()));
 builder.Services.AddScoped<IIncidentRepository, PostgresIncidentRepository>();
 builder.Services.AddScoped<IEvidenceRepository, PostgresEvidenceRepository>();
 builder.Services.AddScoped<IInvestigationRepository, PostgresInvestigationRepository>();
+builder.Services.AddScoped<IAlertIngestionRepository, PostgresAlertIngestionRepository>();
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<CreateIncidentUseCase>();
 builder.Services.AddScoped<GetIncidentUseCase>();
@@ -93,7 +96,8 @@ builder.Services.AddSingleton<IMetricEvidenceNormalizer, DeterministicMetricEvid
 builder.Services.AddScoped<ImportMetricEvidenceUseCase>();
 builder.Services.AddScoped<AnalyzeIncidentUseCase>();
 builder.Services.AddScoped<GetInvestigationUseCase>();
-
+builder.Services.AddScoped<AcceptPrometheusAlertsUseCase>();
+builder.Services.AddScoped<GetIngestionRunUseCase>();
 builder.Services.Configure<OpenAiModelOptions>(
     builder.Configuration.GetSection(OpenAiModelOptions.SectionName));
 builder.Services.Configure<OllamaModelOptions>(
@@ -178,6 +182,7 @@ app.MapHealthChecks("/health");
 app.MapIncidentEndpoints();
 app.MapEvidenceEndpoints();
 app.MapInvestigationEndpoints();
+app.MapIngestionEndpoints();
 
 app.Run();
 
@@ -192,6 +197,7 @@ internal sealed partial class GlobalExceptionHandler(
     {
         var (statusCode, title) = exception switch
         {
+            BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid request"),
             ArgumentException => (StatusCodes.Status400BadRequest, "Invalid request"),
             IncidentDomainException => (StatusCodes.Status409Conflict, "Incident operation rejected"),
             TraceSourceException => (StatusCodes.Status502BadGateway, "Trace source unavailable"),

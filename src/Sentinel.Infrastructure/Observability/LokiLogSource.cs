@@ -15,7 +15,7 @@ public sealed class LokiLogSource(HttpClient httpClient) : ILogSource
         var selector = $"{{service_name=\"{EscapeLogQl(query.ServiceName)}\"}}";
         var uri = $"loki/api/v1/query_range?query={Uri.EscapeDataString(selector)}" +
             $"&start={ToNanoseconds(query.From)}&end={ToNanoseconds(query.To)}" +
-            $"&limit={query.Limit}&direction=forward";
+            $"&limit={query.Limit}&direction=backward";
         string? payloadHash = null;
 
         try

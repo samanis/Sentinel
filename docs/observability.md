@@ -5,13 +5,52 @@ Sentinel emits traces, metrics, and logs through the OpenTelemetry Protocol
 the Collector owns batching, retry, policy, and backend export. Traces are
 persisted in Grafana Tempo, logs in Grafana Loki, and metrics in Prometheus.
 
-## Local development
+## Grafana
 
-Start Tempo, Loki, Prometheus, and the shared local Collector:
+The local Docker Compose environment runs Grafana at
+`http://localhost:3000`. Sign in with the local-development defaults:
+
+```text
+Username: admin
+Password: sentinel-local-dev-only
+```
+
+Override these defaults without editing source-controlled files:
 
 ```powershell
-docker compose up -d tempo loki prometheus otel-collector
+$env:GRAFANA_ADMIN_USER = "admin"
+$env:GRAFANA_ADMIN_PASSWORD = "choose-a-local-password"
+docker compose up -d grafana
 ```
+
+Grafana provisions Prometheus, Loki, and Tempo from
+`deploy/grafana/provisioning/datasources/datasources.yaml`. Prometheus is the
+default data source. Tempo is linked to Loki for trace-to-log navigation and to
+Prometheus for trace-to-metric navigation.
+
+Grafana reads the telemetry backends; applications do not send telemetry to
+Grafana. Both Sentinel and Grafana query Loki, Tempo, and Prometheus directly.
+
+The provisioned **Incident Lab Overview** dashboard displays generator request
+counts and rates, Incident Lab logs, and recent traces. Open it directly at:
+
+```text
+http://localhost:3000/d/incident-lab-overview/incident-lab-overview
+```
+
+## Local development
+
+Start Tempo, Loki, Prometheus, Alertmanager, and the shared local Collector:
+
+```powershell
+docker compose up -d tempo loki prometheus alertmanager otel-collector
+```
+
+Prometheus loads alert rules from `deploy/prometheus/rules` and sends firing
+alerts to Alertmanager at `alertmanager:9093`. Alertmanager uses the webhook
+receiver in `deploy/alertmanager/alertmanager.yml` to call the Sentinel API at
+`http://sentinel-api:8080/api/alerts/webhook`. The API acknowledges only after
+durably creating the alert occurrence and pending ingestion run.
 
 Run either application normally:
 

@@ -1,204 +1,331 @@
 # Sentinel
 
-Sentinel is a publicly viewable portfolio project demonstrating the design and implementation of an enterprise-grade agentic AI platform for autonomous production-incident investigation. It correlates evidence from observability and engineering systems, reconstructs incident timelines, and produces explainable root-cause analyses with confidence scores.
+Sentinel helps platform engineers, SREs, and application-support teams investigate
+production incidents faster. It receives Prometheus alerts, automatically gathers
+the related Loki logs and Tempo traces, groups recurring incidents by neural
+similarity, and lets operators ask plain-language questions about what failed,
+why it failed, and how often it has happened. The result is a searchable,
+evidence-backed incident history that runs inside the client's environment.
 
-> Project status: early planning and architecture. The repository structure and interfaces described below are the intended direction, not a list of completed features.
+> **MVP status:** Sentinel is an active prototype, not a production-ready
+> platform. It is intended to run inside the client's environment so telemetry,
+> incident evidence, embeddings, and model requests can remain under the
+> client's control. The Docker Compose deployment in this repository is the
+> reference environment for development and evaluation.
 
-The current implementation starting point is documented in the [Day 1 Implementation Plan](docs/day-1-plan.md).
-The telemetry setup and Collector deployment model are documented in [Observability](docs/observability.md).
-The PostgreSQL and pgvector local setup is documented in [Database](docs/database.md).
-The Alertmanager-triggered, AI-assisted Loki/Tempo ingestion design is documented
-in [AI-Assisted Telemetry Ingestion](docs/ingestion-system-design.md).
-The complete MVP scope, architecture, delivery sequence, and acceptance criteria
-are documented in the [MVP Technical Specification](docs/mvp-technical-specification.md).
-The independently runnable fault-producing sample is documented in
-[Incident Lab Order API](samples/IncidentLab.OrderApi/README.md).
+Sentinel is not currently offered as a hosted SaaS product. A client deployment
+is responsible for its infrastructure, access controls, secrets, network policy,
+backups, retention, model hosting, and operational support.
 
-When the API runs in the Development environment, interactive API documentation is available at `/swagger` and the OpenAPI document at `/openapi/v1.json`.
+## What is implemented
 
-Run Sentinel API, Incident Lab Order API, the OpenTelemetry Collector, and
-Grafana Tempo as separate containers:
+- Alertmanager-compatible webhook ingestion in C# and ASP.NET Core.
+- Durable storage of every webhook notification in PostgreSQL.
+- Deduplication of repeated notifications into distinct alert occurrences.
+- A separate C# worker that queries Loki and follows trace IDs into Tempo.
+- Deterministic log and trace normalization with provenance.
+- Neural incident embeddings through Ollama `embeddinggemma`.
+- PostgreSQL similarity search through `pgvector`.
+- Similar-incident clustering and recurrence counts.
+- A separately deployed, read-only RAG API.
+- Local answers through Ollama, with an optional OpenAI provider.
+- A complete local observability stack: Grafana, Prometheus, Alertmanager,
+  Loki, Tempo, and OpenTelemetry Collector.
+- Incident Lab sample applications for generating reproducible telemetry.
+
+Ingestion is deterministic and is **not an AI agent**. The LLM participates only
+when the RAG API generates a natural-language answer from retrieved evidence.
+
+## Client-managed deployment model
+
+The intended MVP topology is:
+
+```mermaid
+flowchart LR
+    App[Client application] -->|OTLP telemetry| Collector[OpenTelemetry Collector]
+    Collector --> Prometheus[Prometheus metrics]
+    Collector --> Loki[Loki logs]
+    Collector --> Tempo[Tempo traces]
+
+    Prometheus -->|Firing alert| Alertmanager[Alertmanager]
+    Alertmanager -->|Webhook| API[Sentinel API]
+    API -->|Persist notification and occurrence| PostgreSQL[(PostgreSQL)]
+    API -->|HTTP 202 Accepted| Alertmanager
+
+    Worker[Sentinel Worker] -->|Claim pending occurrence| PostgreSQL
+    Worker -->|Query related logs| Loki
+    Worker -->|Query traces by trace ID| Tempo
+    Worker -->|Create neural embedding| Ollama[Ollama embeddinggemma]
+    Worker -->|Save evidence vector and cluster| PostgreSQL
+
+    Operator[Client operator] -->|Incident question| RAG[Sentinel RAG API]
+    RAG -->|Embed question| Ollama
+    RAG -->|pgvector similarity search| PostgreSQL
+    RAG -->|Evidence context| Model[Ollama or OpenAI answer model]
+    Model -->|Grounded answer and source IDs| RAG
+    RAG -->|Answer, logs, traces, recurrence| Operator
+```
+
+The webhook path ends after durable persistence and returns `202 Accepted`;
+log collection, trace collection, embedding, and clustering run asynchronously.
+The RAG API is a separate read-only service and does not participate in alert
+ingestion.
+
+For a real client deployment, replace the included Incident Lab with the
+client's application and point the OpenTelemetry, Prometheus, Loki, Tempo, and
+Alertmanager configuration at the client's endpoints. The current MVP assumes
+these systems are reachable from the Sentinel containers.
+
+## Technology
+
+- .NET 10 and ASP.NET Core
+- Entity Framework Core and PostgreSQL 18
+- `pgvector` with 768-dimensional embeddings
+- Ollama `embeddinggemma` for neural embeddings
+- Ollama `qwen3:8b` by default for answers
+- Prometheus, Alertmanager, Loki, Tempo, Grafana, and OpenTelemetry
+- Docker Compose for the reference deployment
+
+## Prerequisites
+
+- Docker Desktop with Linux containers
+- Ollama running on the Docker host
+- PowerShell for the commands below, or equivalent shell commands
+- .NET SDK 10 only when building or testing outside Docker
+
+Install the default local models:
+
+```powershell
+ollama pull embeddinggemma
+ollama pull qwen3:8b
+```
+
+You can use another installed Ollama answer model:
+
+```powershell
+$env:OLLAMA_MODEL = "qwen3:1.7b"
+```
+
+The ingestion worker and RAG API must use the same embedding model and vector
+dimensions. Existing vectors cannot be searched with a different embedding
+model without re-embedding them.
+
+## Run locally
+
+Start the reference environment:
 
 ```powershell
 docker compose up --build -d
 ```
 
-Sentinel is available at `http://localhost:5156` and the Incident Lab at
-`http://localhost:5112`. Tempo's query API is available at
-`http://localhost:3200`.
+Check service state:
 
-## Vision
-
-Sentinel is designed to demonstrate production-grade approaches to agentic AI, retrieval-augmented generation (RAG), Model Context Protocol (MCP) integrations, distributed systems, observability, memory optimization, and software architecture.
-
-## Planned capabilities
-
-- Multi-agent incident investigation
-- Root-cause analysis with confidence scores
-- Evidence graphs and explainable conclusions
-- Incident timeline reconstruction
-- AI-generated postmortems
-- Runbook recommendations
-- Human-in-the-loop review and approvals
-
-## MVP scope
-
-The first release will prove one complete investigation workflow before expanding the platform:
-
-1. Receive an alert for a deliberately faulty demo service.
-2. Collect logs, metrics, traces, and recent deployment changes.
-3. Normalize findings into typed, provenance-preserving evidence.
-4. Build an incident timeline and evidence graph.
-5. Rank root-cause hypotheses and explain each conclusion with citations.
-6. Require human review before producing a final postmortem or recommending an action.
-
-### MVP non-goals
-
-- Autonomous production remediation
-- Broad support for every observability or ticketing platform
-- A separately deployed service for every logical component
-- Self-learning agents or adaptive planning
-- Compliance, capacity, cost, security, or chaos-engineering analysis
-
-## Architecture
-
-The MVP uses one modular application and one evidence-to-RCA workflow. Read-only connectors collect observability signals, targeted knowledge retrieval adds relevant operational context, and both inputs are normalized into traceable evidence before root-cause analysis. A human reviews the result before the postmortem is finalized.
-
-![Sentinel MVP architecture](MVP-Architecture-v2.png)
-
-### High-level components
-
-- Incident API
-- Investigation Orchestrator
-- Read-only connectors for logs, metrics, traces, and deployments
-- Knowledge retrieval for runbooks and previous incidents
-- Evidence Normalizer and Store
-- Root Cause Analysis Engine
-- Human review and postmortem generation
-- PostgreSQL with pgvector, plus optional object storage
-- OpenTelemetry and an instrumented demo service
-
-These are logical modules within a modular monolith, with explicit contracts and independently testable boundaries. Modules should become separately deployed services only when measured scaling, isolation, security, or ownership requirements justify the operational cost. The broader target architecture is retained in `DataFlow-Final.png` as a future-state reference, not an MVP implementation plan.
-
-### Evidence contract
-
-Agents exchange structured evidence rather than raw telemetry or unsupported conclusions. At minimum, each evidence object should contain:
-
-| Field | Purpose |
-| --- | --- |
-| ID | Stable identifier used by hypotheses and reports |
-| Source | Originating system and resource |
-| Observed at | Event or observation timestamp |
-| Claim | Concise statement supported by the artifact |
-| Artifact reference | Link or immutable pointer to the underlying data |
-| Reliability | Source-quality assessment, distinct from RCA confidence |
-| Provenance | Agent, query, filters, and transformations that produced it |
-
-Root-cause confidence must be derived from documented evidence and competing hypotheses. It should not be presented as a calibrated probability until evaluation data supports that interpretation.
-
-## Memory strategy
-
-Sentinel separates memory by scope and lifetime:
-
-| Layer | Purpose |
-| --- | --- |
-| Working memory | State and evidence for the current incident |
-| Shared memory | Fast coordination between agents through Redis |
-| Long-term memory | Semantically searchable knowledge in a RAG/vector store |
-| Archive memory | Raw logs, traces, and other durable investigation artifacts |
-
-To keep agent context focused and costs predictable, the platform will use context compression, token budgets, lazy retrieval, and structured evidence objects instead of forwarding raw telemetry between agents.
-
-## RAG and integrations
-
-The Knowledge Agent will retrieve relevant context from runbooks, architecture decision records, architecture documentation, previous incidents, API documentation, and internal wikis.
-
-MCP is the intended integration layer for systems such as:
-
-- GitHub
-- Kubernetes
-- Prometheus
-- Grafana and Loki
-- OpenTelemetry
-- Jira
-- Slack
-- PostgreSQL
-
-## Proposed logical modules
-
-These are intended code boundaries, not necessarily independent deployable services:
-
-```text
-Sentinel.API/             API gateway and external API
-Sentinel.Orchestrator/    Incident workflow and agent coordination
-Sentinel.AgentRuntime/    Multi-agent execution runtime
-Sentinel.AgentSdk/        Contracts and tooling for specialized agents
-Sentinel.Memory/          Working, shared, long-term, and archive memory
-Sentinel.RAG/             Knowledge indexing and retrieval
-Sentinel.MCP/             MCP gateway and protocol support
-Sentinel.Connectors/      External-system integrations
-Sentinel.Storage/         Persistence abstractions and implementations
-Sentinel.UI/              Web interface
-Sentinel.CLI/             Command-line interface
-Sentinel.Samples/         Examples and demo incident scenarios
+```powershell
+docker compose ps
 ```
 
-## Roadmap
+The Telemetry Generator can automatically rotate through failure scenarios. To
+keep traffic running without automated failures, set this before starting:
 
-| Timeline | Focus |
+```powershell
+$env:TELEMETRY_AUTOMATED_FAILURES_ENABLED = "false"
+docker compose up --build -d
+```
+
+To pause all generated sample traffic without stopping Sentinel:
+
+```powershell
+docker compose stop telemetry-generator
+```
+
+Stop the environment while retaining Docker volumes:
+
+```powershell
+docker compose down
+```
+
+Do not add `-v` unless you intend to delete local PostgreSQL, Prometheus, Loki,
+Tempo, and Grafana data.
+
+## Local endpoints
+
+| Component | URL | Purpose |
+| --- | --- | --- |
+| Sentinel API | `http://localhost:5156` | Alert intake and ingestion APIs |
+| Sentinel RAG API | `http://localhost:5157` | Incident search and answers |
+| Incident Lab Order API | `http://localhost:5112` | Fault-producing sample service |
+| Telemetry Generator | `http://localhost:5113/status` | Sample traffic status |
+| Grafana | `http://localhost:3000` | Metrics, logs, and traces |
+| Prometheus | `http://localhost:9090` | Metrics and alert rules |
+| Alertmanager | `http://localhost:9093` | Alert routing |
+| Tempo | `http://localhost:3200` | Trace query API |
+| Loki | `http://localhost:3100` | Log query API |
+| PostgreSQL | `localhost:5433` | Sentinel persistence |
+
+Local development credentials use `sentinel-local-dev-only` defaults. They are
+not suitable for a shared or production client environment.
+
+## Submit an alert
+
+Alertmanager sends notifications to:
+
+```text
+POST http://localhost:5156/api/alerts/webhook
+```
+
+Example:
+
+```powershell
+$body = @{
+    receiver = "sentinel"
+    status = "firing"
+    alerts = @(
+        @{
+            labels = @{
+                alertname = "OrderApiHighLatency"
+                service = "incidentlab-order-api"
+                environment = "local"
+            }
+            annotations = @{
+                summary = "Order API latency is high"
+            }
+            startsAt = (Get-Date).ToUniversalTime().ToString("o")
+        }
+    )
+} | ConvertTo-Json -Depth 8
+
+Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:5156/api/alerts/webhook" `
+    -ContentType "application/json" `
+    -Body $body
+```
+
+The API durably stores the notification and returns `202 Accepted`. Loki, Tempo,
+embedding, and clustering work continues asynchronously in `Sentinel.Worker`.
+
+Repeated delivery of the same labels and Prometheus `startsAt` creates another
+notification record but does not create another occurrence. A later distinct
+occurrence can join an existing incident cluster when its neural evidence is
+sufficiently similar.
+
+## Query incident knowledge
+
+Ask the read-only RAG API a question:
+
+```powershell
+$body = @{
+    question = "What is the issue with the most recent 502 error?"
+    service = "incidentlab-order-api"
+    environment = "local"
+    limit = 1
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://localhost:5157/api/rag/query" `
+    -ContentType "application/json" `
+    -Body $body
+```
+
+Each cited source can include:
+
+- Alert, service, environment, scenario, and incident time
+- Log and trace summaries
+- Related log and trace contents
+- Vector similarity
+- Incident cluster ID
+- Total occurrence count
+- Occurrences in the past hour
+- First-seen and last-seen timestamps
+
+Semantic retrieval is also available without answer generation:
+
+```text
+POST http://localhost:5157/api/rag/search
+```
+
+## Persistence semantics
+
+Sentinel stores different concepts separately:
+
+| Data | Meaning |
 | --- | --- |
-| Weeks 1-2 | Define the demo incident, acceptance criteria, threat model, evidence schema, architecture, and ADRs |
-| Weeks 3-4 | Build the instrumented demo system, incident ingestion, Docker environment, and OpenTelemetry foundation |
-| Weeks 5-6 | Add read-only telemetry and deployment connectors, evidence normalization, memory, and targeted RAG |
-| Weeks 7-8 | Implement the agent contracts and a single end-to-end investigator with deterministic correlation |
-| Weeks 9-10 | Add specialized agents, orchestration, hypothesis ranking, confidence rationale, and failure handling |
-| Weeks 11-12 | Complete human review, postmortem generation, evaluation suite, UI, documentation, and reproducible demo |
+| Alert notification | Every webhook delivery received from Alertmanager |
+| Alert occurrence | One distinct alert identity and `startsAt` value |
+| Ingestion run | Asynchronous Loki and Tempo collection for an occurrence |
+| Evidence bundle | Canonical evidence text plus neural vector |
+| Incident cluster | Similar evidence bundles grouped by service and environment |
 
-## Design principles
+This prevents Alertmanager retries from inflating statements such as “this
+incident happened five times.” Recurrence counts represent distinct similar
+occurrences, not webhook delivery attempts.
 
-- Evidence over intuition
-- Specialized agents with clear responsibilities
-- Memory and context efficiency
-- Model-agnostic interfaces
-- Open standards, especially MCP and OpenTelemetry
-- Human oversight for consequential actions
-- Production-first engineering
-- Deterministic processing for collection and correlation where possible; LLM reasoning where it adds clear value
-- Least-privilege, read-only access by default
+See [Database](docs/database.md) for schema and pgAdmin details.
 
-## Reliability and safety
+## Repository layout
 
-The investigation workflow must support timeouts, cancellation, retries, partial results, and idempotent re-execution. Every conclusion should be traceable to its evidence, model invocation, prompt version, and tool activity.
+```text
+src/Sentinel.Api/             Alert intake and existing incident/evidence APIs
+src/Sentinel.Worker/          Background Loki, Tempo, embedding, and clustering
+src/Sentinel.RagApi/          Read-only incident RAG API
+src/Sentinel.Application/     Use cases and application contracts
+src/Sentinel.Domain/          Domain models and invariants
+src/Sentinel.Infrastructure/  PostgreSQL, pgvector, Ollama, Loki, and Tempo
+samples/IncidentLab.OrderApi/ Fault-producing sample API
+samples/IncidentLab.TelemetryGenerator/ Sample traffic generator
+deploy/                       Local observability configuration
+docs/                         Design and operational documentation
+tests/                        Unit and sample tests
+```
 
-Telemetry, retrieved documents, and tool responses are untrusted input. Connectors must enforce authorization independently of agent instructions, defend against prompt injection, redact sensitive data, and maintain an auditable record of access. Any action that can change an external system remains behind an explicit human approval boundary.
+## Build and test
 
-## Success criteria
+```powershell
+dotnet restore Sentinel.sln
+dotnet build Sentinel.sln --no-restore
+dotnet test Sentinel.sln --no-build
+docker compose config --quiet
+```
 
-The MVP will be evaluated against a fixed collection of reproducible incident scenarios:
+## MVP limitations
 
-- Root cause appears in the ranked hypotheses and is supported by valid evidence.
-- Evidence citations resolve to the correct source artifacts.
-- The reconstructed timeline preserves event ordering and identifies relevant changes.
-- Repeated runs produce materially consistent conclusions.
-- Investigation latency and token/model cost stay within defined scenario budgets.
-- Missing integrations and partial failures produce transparent degraded results, not fabricated evidence.
+The current implementation should not be treated as production-ready. Important
+gaps include:
 
-## Future enhancements
+- No complete authentication or authorization model for client users and
+  service-to-service calls
+- Local development secrets and exposed ports in the reference Compose file
+- No high-availability or multi-node deployment design
+- No documented disaster-recovery or automated backup workflow
+- No tenant isolation
+- No formal performance, scale, or embedding-threshold calibration
+- No production retention and data-governance policy
+- No hardened prompt-injection or sensitive-data redaction pipeline
+- No autonomous remediation
+- No AI agent in the ingestion pipeline
+- Limited connector coverage beyond the included observability systems
 
-Potential extensions include Security, Cost Analysis, Capacity Planning, Compliance, and Chaos Engineering agents, along with adaptive planning, learning agents, and a plugin ecosystem.
+Before a client pilot, deploy behind the client's ingress and identity controls,
+replace all default secrets, restrict network access, define retention and backup
+policies, validate model/data residency, and test against representative client
+telemetry.
 
-## Contributions
+## Documentation
 
-This is a personal portfolio project. Unsolicited contributions are not currently accepted. Opening an issue or submitting a pull request does not grant permission to use any part of the project.
+- [Ingestion system design](docs/ingestion-system-design.md)
+- [Ingestion data flow](docs/ingestion-data-flow.svg)
+- [Observability](docs/observability.md)
+- [Database](docs/database.md)
+- [Incident Lab Order API](samples/IncidentLab.OrderApi/README.md)
+- [MVP technical specification](docs/mvp-technical-specification.md)
+- [Future-state architecture](DataFlow-Final.png)
 
-## License and permitted use
+## License
 
 Copyright (c) 2026 Saman. All rights reserved.
 
-This repository is publicly available solely for portfolio review, recruitment evaluation, and demonstration purposes.
-
-No permission is granted to use, copy, modify, distribute, sublicense, sell, deploy, publish, or create derivative works from any portion of this project without the copyright owner's prior written consent.
-
-Viewing and forking through functionality provided by GitHub remain subject to GitHub's Terms of Service. Rights provided by applicable law are not restricted.
-
-For licensing or usage permission, contact the repository owner through their GitHub profile. See the [LICENSE](LICENSE) file for the complete terms.
+This repository is publicly visible for portfolio review, recruitment evaluation,
+and demonstration. No permission is granted to use, copy, modify, distribute,
+deploy, sublicense, sell, publish, or create derivative works without the
+copyright owner's prior written consent. See [LICENSE](LICENSE).

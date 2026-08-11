@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 using Sentinel.Infrastructure.Persistence;
 
 #nullable disable
@@ -20,6 +21,7 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                 .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Sentinel.Domain.Evidence.EvidenceItem", b =>
@@ -174,6 +176,233 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_incidents_service_status");
 
                     b.ToTable("incidents", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Ingestion.AlertOccurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AlertName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("alert_name");
+
+                    b.Property<string>("AnnotationsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("annotations");
+
+                    b.Property<DateTimeOffset?>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("environment");
+
+                    b.Property<string>("GeneratorUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("generator_url");
+
+                    b.Property<string>("LabelsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("labels");
+
+                    b.Property<string>("OccurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("occurrence_key");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("service");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_alert_occurrences_occurrence_key");
+
+                    b.HasIndex("Service", "StartedAt")
+                        .HasDatabaseName("ix_alert_occurrences_service_started_at");
+
+                    b.ToTable("alert_occurrences", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Ingestion.IngestionObservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("content_hash");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("IngestionRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ingestion_run_id");
+
+                    b.Property<DateTimeOffset>("ObservedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("observed_at");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("service");
+
+                    b.Property<string>("SourceReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("source_reference");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source_system");
+
+                    b.Property<string>("SpanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("span_id");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("trace_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TraceId")
+                        .HasDatabaseName("ix_ingestion_observations_trace_id");
+
+                    b.HasIndex("IngestionRunId", "ContentHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ingestion_observations_run_content_hash");
+
+                    b.HasIndex("IngestionRunId", "SourceSystem")
+                        .HasDatabaseName("ix_ingestion_observations_run_source");
+
+                    b.ToTable("ingestion_observations", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Ingestion.IngestionRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AlertOccurrenceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alert_occurrence_id");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<int>("LogCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("log_count");
+
+                    b.Property<string>("LokiStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("loki_status");
+
+                    b.Property<int>("ObservationCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("observation_count");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TempoStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tempo_status");
+
+                    b.Property<int>("TraceCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("trace_count");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<DateTimeOffset?>("WindowEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("window_end");
+
+                    b.Property<DateTimeOffset?>("WindowStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("window_start");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlertOccurrenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ingestion_runs_alert_occurrence_id");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_ingestion_runs_status_created_at");
+
+                    b.ToTable("ingestion_runs", (string)null);
                 });
 
             modelBuilder.Entity("Sentinel.Domain.Investigations.EvidenceRelationship", b =>
@@ -365,11 +594,245 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.ToTable("investigation_runs", (string)null);
                 });
 
+            modelBuilder.Entity("Sentinel.Infrastructure.Persistence.AlertNotificationRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AlertName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("alert_name");
+
+                    b.Property<string>("AnnotationsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("annotations");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("environment");
+
+                    b.Property<string>("LabelsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("labels");
+
+                    b.Property<string>("OccurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("occurrence_key");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("service");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurrenceKey", "ReceivedAt")
+                        .HasDatabaseName("ix_alert_notifications_occurrence_received_at");
+
+                    b.ToTable("alert_notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Infrastructure.Persistence.EvidenceBundleRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AlertName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("alert_name");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector(768)")
+                        .HasColumnName("embedding");
+
+                    b.Property<int?>("EmbeddingDimensions")
+                        .HasColumnType("integer")
+                        .HasColumnName("embedding_dimensions");
+
+                    b.Property<string>("EmbeddingModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("embedding_model");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("environment");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("failure_code");
+
+                    b.Property<Guid>("IngestionRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ingestion_run_id");
+
+                    b.Property<string>("SearchDocument")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("search_document");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("service");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngestionRunId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_evidence_bundles_ingestion_run_id");
+
+                    b.HasIndex("EmbeddingModel", "Service", "Environment")
+                        .HasDatabaseName("ix_evidence_bundles_search_scope");
+
+                    b.ToTable("evidence_bundles", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Infrastructure.Persistence.IncidentClusterOccurrenceRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ClusterId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("cluster_id");
+
+                    b.Property<Guid>("EvidenceBundleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("evidence_bundle_id");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<double>("Similarity")
+                        .HasColumnType("double precision")
+                        .HasColumnName("similarity");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvidenceBundleId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_incident_cluster_occurrences_bundle");
+
+                    b.HasIndex("ClusterId", "OccurredAt")
+                        .HasDatabaseName("ix_incident_cluster_occurrences_cluster_occurred_at");
+
+                    b.ToTable("incident_cluster_occurrences", (string)null);
+                });
+
+            modelBuilder.Entity("Sentinel.Infrastructure.Persistence.IncidentClusterRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("EmbeddingModel")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("embedding_model");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("environment");
+
+                    b.Property<DateTimeOffset>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_seen_at");
+
+                    b.Property<DateTimeOffset>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<int>("OccurrenceCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("occurrence_count");
+
+                    b.Property<Vector>("RepresentativeEmbedding")
+                        .IsRequired()
+                        .HasColumnType("vector(768)")
+                        .HasColumnName("representative_embedding");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("service");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Service", "Environment", "EmbeddingModel")
+                        .HasDatabaseName("ix_incident_clusters_scope");
+
+                    b.ToTable("incident_clusters", (string)null);
+                });
+
             modelBuilder.Entity("Sentinel.Domain.Evidence.EvidenceItem", b =>
                 {
                     b.HasOne("Sentinel.Domain.Incidents.Incident", null)
                         .WithMany()
                         .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Ingestion.IngestionObservation", b =>
+                {
+                    b.HasOne("Sentinel.Domain.Ingestion.IngestionRun", null)
+                        .WithMany()
+                        .HasForeignKey("IngestionRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sentinel.Domain.Ingestion.IngestionRun", b =>
+                {
+                    b.HasOne("Sentinel.Domain.Ingestion.AlertOccurrence", null)
+                        .WithOne()
+                        .HasForeignKey("Sentinel.Domain.Ingestion.IngestionRun", "AlertOccurrenceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -454,6 +917,30 @@ namespace Sentinel.Infrastructure.Persistence.Migrations
                     b.HasOne("Sentinel.Domain.Incidents.Incident", null)
                         .WithMany()
                         .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sentinel.Infrastructure.Persistence.EvidenceBundleRecord", b =>
+                {
+                    b.HasOne("Sentinel.Domain.Ingestion.IngestionRun", null)
+                        .WithOne()
+                        .HasForeignKey("Sentinel.Infrastructure.Persistence.EvidenceBundleRecord", "IngestionRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sentinel.Infrastructure.Persistence.IncidentClusterOccurrenceRecord", b =>
+                {
+                    b.HasOne("Sentinel.Infrastructure.Persistence.IncidentClusterRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ClusterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Sentinel.Infrastructure.Persistence.EvidenceBundleRecord", null)
+                        .WithOne()
+                        .HasForeignKey("Sentinel.Infrastructure.Persistence.IncidentClusterOccurrenceRecord", "EvidenceBundleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

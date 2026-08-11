@@ -35,15 +35,26 @@ Available scenarios:
 
 | ID | Behavior |
 | --- | --- |
-| `slow-database` | Returns HTTP 200 after a configurable delay. |
+| `slow-database` | Returns HTTP 504 with a sanitized slow SQL query and database span attributes. |
 | `database-unavailable` | Returns HTTP 503 after a configurable delay. |
 | `dependency-timeout` | Returns HTTP 504 after a configurable delay. |
+| `external-api-timeout` | Returns HTTP 504 for a timed-out payment REST API call. |
+| `web-service-unavailable` | Returns HTTP 502 for an unavailable SOAP inventory service. |
+| `ftp-transfer-failure` | Returns HTTP 502 for a failed partner FTP upload. |
+| `memory-leak` | Returns HTTP 503 while retaining memory up to a safe 32 MiB cap. |
 | `unhandled-exception` | Returns HTTP 500 with exception telemetry. |
 
 Only one scenario is active at a time. It stops automatically when its duration
 expires, or immediately through `POST /scenarios/stop`. Every order request is
 tagged with `incidentlab.scenario` in custom traces and metrics. Failure
 responses include the scenario and trace ID.
+
+The automated Telemetry Generator rotates through `slow-database`,
+`external-api-timeout`, `web-service-unavailable`, `ftp-transfer-failure`, and
+`memory-leak`. Logs include the dependency type, operation, target, sanitized
+diagnostic statement, delay, and HTTP status. Trace spans carry matching
+database, HTTP, RPC, FTP, or process-memory attributes. The memory allocation is
+bounded and cleared when a scenario is stopped or changed.
 
 The sample can later move to its own repository without changing Sentinel's
 production projects. Its current location keeps the portfolio demo easy to

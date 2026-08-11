@@ -1,11 +1,8 @@
-using Sentinel.Domain.Incidents;
-
 namespace Sentinel.Application.Evidence.TraceIngestion;
 
 public sealed class DeterministicTraceEvidenceNormalizer : ITraceEvidenceNormalizer
 {
     public IReadOnlyList<NormalizedTraceEvidence> Normalize(
-        IncidentId incidentId,
         TraceObservation trace)
     {
         ArgumentNullException.ThrowIfNull(trace);
@@ -36,6 +33,13 @@ public sealed class DeterministicTraceEvidenceNormalizer : ITraceEvidenceNormali
 
         AddAttribute(details, span.Attributes, "http.response.status_code", "HTTP status");
         AddAttribute(details, span.Attributes, "incidentlab.scenario", "Scenario");
+        AddAttribute(details, span.Attributes, "incidentlab.failure.cause", "Failure cause");
+        AddAttribute(details, span.Attributes, "incidentlab.failure.operation", "Operation");
+        AddAttribute(details, span.Attributes, "incidentlab.failure.target", "Target");
+        AddAttribute(details, span.Attributes, "incidentlab.simulated", "Simulated");
+        AddAttribute(details, span.Attributes, "incidentlab.simulated.statement", "Simulated statement");
+        AddAttribute(details, span.Attributes, "db.query.summary", "Database query");
+        AddAttribute(details, span.Attributes, "error.type", "Error type");
 
         if (span.Events.Count > 0)
         {

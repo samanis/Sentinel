@@ -36,7 +36,7 @@ public sealed class ImportLogEvidenceUseCase(
 
         var logs = await logSource.QueryAsync(
             new LogQuery(incident.Service, from, to), cancellationToken);
-        var normalized = normalizer.Normalize(incidentId, logs);
+        var normalized = normalizer.Normalize(logs);
         var now = clock.UtcNow;
         var items = normalized.Select(item => EvidenceItem.Create(
             incidentId,
