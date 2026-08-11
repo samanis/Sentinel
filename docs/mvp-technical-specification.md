@@ -18,7 +18,7 @@ architecture.
 
 ## Implementation status
 
-Last reviewed: 2026-08-04
+Last reviewed: 2026-08-11
 
 Status notation:
 
@@ -58,6 +58,14 @@ Status notation:
 - `[x]` Manual Evidence creation and retrieval API
 - `[x]` Loki log storage and read-only connector
 - `[x]` Prometheus metric storage and read-only connector
+- `[x]` Alertmanager-compatible webhook ingestion with durable notification storage and HTTP 202 acknowledgement
+- `[x]` Distinct alert-occurrence handling that prevents webhook retries from inflating recurrence counts
+- `[x]` Separately deployed ingestion worker for Loki log and Tempo trace correlation
+- `[x]` Neural evidence embeddings through local Ollama `embeddinggemma`
+- `[x]` PostgreSQL/pgvector similarity search and similar-incident clustering
+- `[x]` Separately deployed, read-only Sentinel Incident RAG API
+- `[x]` Question embeddings, incident retrieval, and grounded answers with source logs, traces, and recurrence metadata
+- `[x]` Local Ollama answer provider with optional OpenAI provider
 - `[ ]` Deployment/change evidence connector
 - `[ ]` Investigation orchestrator
 - `[ ]` Persisted investigation timeline and hypotheses
@@ -66,7 +74,8 @@ Status notation:
 - `[ ]` Root Cause Agent
 - `[ ]` MCP Gateway
 - `[ ]` First read-only MCP integration
-- `[ ]` RAG and knowledge evidence
+- `[x]` RAG over persisted incident evidence bundles
+- `[ ]` External runbook and operational-document knowledge ingestion
 - `[ ]` RCA report generation
 - `[ ]` Human review workflow
 - `[ ]` Web UI beyond Swagger
@@ -87,7 +96,7 @@ Status notation:
 - `[x]` Import cumulative request, failure, and p95 latency Metric Evidence
 - `[x]` Confirm a stored trace contains `DependencyTimeout` and HTTP 504
 - `[x]` Restart Tempo and retrieve the same trace from persistent storage
-- `[x]` Run the current automated suite successfully: 36 of 36 tests
+- `[x]` Run the current automated test projects successfully (verified 2026-08-11)
 - `[x]` Create and retrieve Sentinel incidents through PostgreSQL
 - `[x]` Persist incidents through a Sentinel API restart
 - `[x]` Persist Evidence through a Sentinel API restart
@@ -97,6 +106,11 @@ Status notation:
 - `[x]` Persist explicit Tempo trace ID, span ID, and service provenance
 - `[x]` Commit each normalized trace import as one atomic Evidence batch
 - `[x]` Emit structured trace import, not-found, validation, and source-failure logs
+- `[x]` Receive an Alertmanager webhook and durably acknowledge it with HTTP 202
+- `[x]` Correlate a pending alert occurrence with related Loki logs and Tempo traces
+- `[x]` Store a neural incident vector and assign a similarity cluster
+- `[x]` Query the separate Incident RAG API and return a grounded answer with source evidence
+- `[x]` Report recurrence from distinct similar occurrences rather than webhook delivery attempts
 - `[ ]` Persist versioned hypotheses and Evidence relationships in PostgreSQL
 - `[x]` Repeat Tempo collection without creating duplicate Evidence
 - `[ ]` Correlate trace, log, metric, and deployment evidence
@@ -310,7 +324,7 @@ MVP data includes:
 - Agent and model execution audit records
 - Human review decisions
 - RCA reports
-- Knowledge-document metadata and embeddings when RAG is introduced
+- External knowledge-document metadata and embeddings when document ingestion is introduced
 
 `jsonb` is used for bounded source-specific attributes and provenance. pgvector
 is used for semantic retrieval indexes. A vector is never the authoritative
@@ -654,10 +668,15 @@ inspection are suitable candidates.
 
 ## 9. Knowledge retrieval and RAG
 
-RAG adds targeted operational context from runbooks, architecture decisions,
-service documentation, prior incidents, and API documentation.
+The implemented Sentinel Incident RAG retrieves semantically similar persisted
+incident evidence bundles from PostgreSQL/pgvector. It embeds the operator's
+question, retrieves relevant alerts, logs, traces, similarity clusters, and
+recurrence metadata, and asks the configured answer model to produce a grounded
+answer with source identifiers.
 
-RAG requirements:
+External knowledge retrieval from runbooks, architecture decisions, service
+documentation, and API documentation remains future work. Requirements for that
+extension are:
 
 - Index only authorized documents.
 - Preserve document ID, version, location, and access scope.
@@ -667,8 +686,9 @@ RAG requirements:
 - Create Knowledge evidence with resolvable citations.
 - Keep the source text authoritative; embeddings are retrieval indexes only.
 
-RAG is added after operational evidence collection works. It must not become a
-substitute for trace, log, metric, or deployment evidence.
+External document knowledge must complement rather than replace trace, log,
+metric, or deployment evidence. The current RAG service remains read-only and
+separately deployed from ingestion.
 
 ## 10. Human review and safety
 
