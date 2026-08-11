@@ -1,5 +1,11 @@
 # AI-Assisted Telemetry Ingestion — System Design
 
+> **Status: Target / future-state design — not implemented today.**
+> This document describes the planned agent-assisted ingestion architecture.
+> For the live deterministic MVP, see the
+> [implemented architecture](../DataFlow-Implemented.png) and the current
+> [README](../README.md).
+
 ## 1. Purpose
 
 The ingestion subsystem turns a Prometheus Alertmanager notification into a
