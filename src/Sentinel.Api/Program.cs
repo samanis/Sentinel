@@ -179,6 +179,13 @@ app.MapGet("/", () => Results.Ok(new
 }))
     .ExcludeFromDescription();
 app.MapHealthChecks("/health");
+// Liveness stays independent of PostgreSQL; readiness removes the instance from
+// service while persistence is unavailable without forcing a restart.
+app.MapGet("/health/ready", async (SentinelDbContext database, CancellationToken cancellationToken) =>
+    await database.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "ready" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable))
+    .ExcludeFromDescription();
 app.MapIncidentEndpoints();
 app.MapEvidenceEndpoints();
 app.MapInvestigationEndpoints();

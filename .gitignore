@@ -24,3 +24,12 @@ appsettings.Local.json
 ## Operating system files
 .DS_Store
 Thumbs.db
+
+## Terraform local state, plans, and environment inputs
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.auto.tfvars.json
+crash.log

@@ -112,6 +112,9 @@ model without re-embedding them.
 
 ## Run locally
 
+For the existing Minikube cluster, see [Terraform deployment on Windows](deploy/terraform/README.md).
+It starts with the API and persistent PostgreSQL; Compose below remains the full reference stack.
+
 Start the reference environment:
 
 ```powershell
